@@ -73,7 +73,7 @@ func PeerInformation(node *enode.Node, bhp BlockHeightProvider) (*types.OperaNod
 
 	// establish TCP connection to the remote peer
 	addr := fmt.Sprintf("%s:%d", node.IP().String(), node.TCP())
-	log.Debugf("p2p connecting to %s; signing as %s", addr, crypto.PubkeyToAddress(cfg.Signature.PrivateKey.PublicKey).String())
+	log.Infof("p2p connecting to %s; signing as %s", addr, crypto.PubkeyToAddress(cfg.Signature.PrivateKey.PublicKey).String())
 
 	c, err := net.DialTimeout("tcp", addr, peerConnectionTimeout)
 	if err != nil {
@@ -93,17 +93,18 @@ func PeerInformation(node *enode.Node, bhp BlockHeightProvider) (*types.OperaNod
 		log.Errorf("can not set p2p deadline; %s", err.Error())
 	}
 
-	return chat(con, bhp)
+	return chat(con, bhp, addr)
 }
 
 // chat with the connected peer to get the node information we need.
-func chat(con *rlpx.Conn, bhp BlockHeightProvider) (*types.OperaNodeInformation, error) {
+func chat(con *rlpx.Conn, bhp BlockHeightProvider, remoteAddress string) (*types.OperaNodeInformation, error) {
 	var stage int
 	var err error
 
 	// prep the info container
 	var info = types.OperaNodeInformation{
-		Updated: time.Now().UTC(),
+		Updated:       time.Now().UTC(),
+		RemoteAddress: remoteAddress,
 	}
 
 	for stage < chatStageDone {
@@ -150,7 +151,7 @@ func chat(con *rlpx.Conn, bhp BlockHeightProvider) (*types.OperaNodeInformation,
 func readNext(con *rlpx.Conn, info *types.OperaNodeInformation, bhp BlockHeightProvider) (int, error) {
 	mt, msg, err := receive(con)
 	if err != nil {
-		log.Warningf("p2p receiver failed; %s", err.Error())
+		log.Warning("p2p receiver failed", "err", err.Error(), "node_address", info.RemoteAddress)
 		return chatStageGoodbye, err
 	}
 

@@ -61,6 +61,7 @@ type OperaNodeInformation struct {
 	IsOperaConfirmed bool      `bson:"is_opera"`
 	Protocols        string    `bson:"caps"`
 	Updated          time.Time `bson:"updated"`
+	RemoteAddress    string    `bson:"remote_address"`
 }
 
 // OperaNodeLocationAggregate represents an aggregated summary of Opera network nodes
