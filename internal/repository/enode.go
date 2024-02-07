@@ -39,6 +39,7 @@ func (p *proxy) NetworkNodeConfirmCheck(node *enode.Node, bhp p2p.BlockHeightPro
 	if err != nil {
 		if err == p2p.ErrNonOperaPeer {
 			p.log.Warningf("non-opera node found at %s:%d; id %s", node.IP().String(), node.TCP(), node.ID().String())
+			//return false, p2p.ErrNonOperaPeer
 		} else {
 			p.log.Debugf("no node information from %s:%d; %s", node.IP().String(), node.TCP(), err.Error())
 			inf = nil

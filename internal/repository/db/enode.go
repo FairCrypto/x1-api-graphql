@@ -285,6 +285,7 @@ func (db *MongoDbBridge) NetworkNodesGeoAggregated(level int) ([]*types.OperaNod
 	cu, err := col.Aggregate(context.Background(), mongo.Pipeline{
 		{{Key: "$match", Value: bson.D{
 			{Key: "fails", Value: 0},
+			{Key: "info.is_opera", Value: true},
 		}}},
 		{{Key: "$group", Value: bson.D{
 			{Key: "_id", Value: mainKey},

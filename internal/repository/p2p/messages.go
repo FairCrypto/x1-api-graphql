@@ -65,8 +65,8 @@ func myHello() []byte {
 			Version: 5,
 			Name:    cfg.AppName,
 			Caps: []ep2p.Cap{
-				{Name: "opera", Version: 62},
-				{Name: "opera", Version: 63},
+				{Name: "x1", Version: 64},
+				{Name: "x1", Version: 65},
 			},
 			ID: crypto.FromECDSAPub(&cfg.Signature.PrivateKey.PublicKey)[1:],
 		}

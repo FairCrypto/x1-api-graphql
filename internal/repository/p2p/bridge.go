@@ -210,7 +210,7 @@ func hasOperaProtocol(caps []p2p.Cap) (bool, string) {
 		}
 		sb.WriteString(c.String())
 
-		if c.Name == "opera" {
+		if c.Name == "x1" {
 			ok = true
 		}
 	}
