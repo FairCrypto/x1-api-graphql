@@ -119,6 +119,8 @@ func (app *apiServer) setupHandlers(mux *http.ServeMux) {
 	mux.Handle("/api", h)
 	mux.Handle("/graphql", h)
 
+	mux.Handle("/health", handlers.Health(app.log, app.cfg))
+
 	// setup gas price estimator REST API resolver
 	mux.Handle("/json/gas", handlers.GasPrice(app.log))
 	mux.Handle("/html/validators/down", handlers.ValidatorsDownHandler(app.log))

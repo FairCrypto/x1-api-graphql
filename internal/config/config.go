@@ -98,7 +98,9 @@ type Log struct {
 
 // OperaNode represents the Opera network node access configuration
 type OperaNode struct {
-	ApiNodeUrl string `mapstructure:"url"`
+	ApiNodeUrl        string `mapstructure:"url"`
+	ApiHealthCheckUrl string `mapstructure:"health_check_url"`
+	BlockDiff         int64  `mapstructure:"block_diff"`
 }
 
 // PeerNetworking defines configuration for Opera p2p protocol.
