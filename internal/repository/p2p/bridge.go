@@ -150,7 +150,7 @@ func chat(con *rlpx.Conn, bhp BlockHeightProvider) (*types.OperaNodeInformation,
 func readNext(con *rlpx.Conn, info *types.OperaNodeInformation, bhp BlockHeightProvider) (int, error) {
 	mt, msg, err := receive(con)
 	if err != nil {
-		log.Warningf("p2p receiver failed; %s", err.Error())
+		log.Debugf("p2p receiver failed; %s", err.Error())
 		return chatStageGoodbye, err
 	}
 
@@ -254,7 +254,7 @@ func receive(con *rlpx.Conn) (mt uint64, target interface{}, err error) {
 	// Check your RLP here, if needed https://toolkit.abdk.consulting/ethereum#rlp
 	err = rlp.DecodeBytes(data[:], target)
 	if err != nil {
-		log.Errorf("p2p data block %s; %s", hexutil.Encode(rawData), err.Error())
+		log.Debugf("p2p data block %s; %s", hexutil.Encode(rawData), err.Error())
 		return 0, nil, err
 	}
 
