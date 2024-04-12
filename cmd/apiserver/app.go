@@ -11,6 +11,9 @@ import (
 	"fantom-api-graphql/internal/repository"
 	"fantom-api-graphql/internal/svc"
 	"flag"
+	"fmt"
+	cache "github.com/victorspringer/http-cache"
+	"github.com/victorspringer/http-cache/adapter/memory"
 	"log"
 	"net/http"
 	"os"
@@ -116,6 +119,25 @@ func (app *apiServer) setupHandlers(mux *http.ServeMux) {
 		time.Second*time.Duration(app.cfg.Server.ResolverTimeout),
 		"Service timeout.",
 	)
+
+	memcached, err := memory.NewAdapter(
+		memory.AdapterWithAlgorithm(memory.LRU),
+		memory.AdapterWithCapacity(10000000),
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	cacheClient, err := cache.NewClient(
+		cache.ClientWithAdapter(memcached),
+		cache.ClientWithTTL(1*time.Minute),
+	)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	mux.Handle("/api", h)
 	mux.Handle("/graphql", h)
 
@@ -123,7 +145,10 @@ func (app *apiServer) setupHandlers(mux *http.ServeMux) {
 
 	// setup gas price estimator REST API resolver
 	mux.Handle("/json/gas", handlers.GasPrice(app.log))
-	mux.Handle("/html/validators/down", handlers.ValidatorsDownHandler(app.log))
+	mux.Handle("/json/validators/down", cacheClient.Middleware(handlers.ValidatorsDownJSONHandler(app.log)))
+	mux.Handle("/html/validators/down", cacheClient.Middleware(handlers.ValidatorsDownHandler(app.log)))
+	mux.Handle("/validators", cacheClient.Middleware(handlers.ValidatorsJSONHandler(app.api, app.log)))
+	mux.Handle("/validators/", cacheClient.Middleware(handlers.ValidatorJSONHandler(app.log)))
 
 	// handle GraphiQL interface
 	mux.Handle("/graphi", handlers.GraphiHandler(app.cfg.Server.DomainAddress, app.log))

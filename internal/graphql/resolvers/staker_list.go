@@ -24,11 +24,11 @@ func (rs *rootResolver) StakersWithFlag(args struct{ Flag string }) ([]*Staker, 
 		case "IS_ACTIVE":
 			return v.Status == 0
 		case "IS_WITHDRAWN":
-			return uint64(v.Status)&sfcStatusWithdrawn > 0
+			return uint64(v.Status)&SfcStatusWithdrawn > 0
 		case "IS_OFFLINE":
-			return uint64(v.Status)&sfcStatusOffline > 0
+			return uint64(v.Status)&SfcStatusOffline > 0
 		case "IS_CHEATER":
-			return uint64(v.Status)&sfcStatusDoubleSign > 0
+			return uint64(v.Status)&SfcStatusDoubleSign > 0
 		default:
 			log.Errorf("unknown flag filter %s", args.Flag)
 		}
@@ -93,4 +93,28 @@ func (s StakesByTotalStaked) Less(i, j int) bool {
 // Swap changes position of two stakers in the list.
 func (s StakesByTotalStaked) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+// ValidatorStatuses resolves a list of staker statuses from SFC smart contract.
+func (rs *rootResolver) ValidatorStatuses() ([]*types.ValidatorStatus, error) {
+	stakers, err := rs.Stakers()
+	if err != nil {
+		return nil, err
+	}
+
+	output := make([]*types.ValidatorStatus, 0)
+	for _, staker := range stakers {
+		validatorStatus, err := ValidatorStatus(*staker)
+		if err != nil {
+			return nil, err
+		}
+
+		output = append(output, validatorStatus)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return output, nil
 }

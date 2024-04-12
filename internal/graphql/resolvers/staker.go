@@ -19,9 +19,9 @@ const (
 	stakerCallGroupDowntime      = "down"
 
 	// SFC status bits
-	sfcStatusWithdrawn  = 1
-	sfcStatusOffline    = 1 << 3
-	sfcStatusDoubleSign = 1 << 7
+	SfcStatusWithdrawn  = 1
+	SfcStatusOffline    = 1 << 3
+	SfcStatusDoubleSign = 1 << 7
 )
 
 // Staker represents resolvable staker record.
@@ -212,12 +212,12 @@ func (st Staker) IsActive() bool {
 
 // IsWithdrawn signals if the validator has withdrawn from the validators.
 func (st Staker) IsWithdrawn() bool {
-	return st.Status&sfcStatusWithdrawn > 0
+	return st.Status&SfcStatusWithdrawn > 0
 }
 
 // IsCheater signals if the validator has a double sign tag active.
 func (st Staker) IsCheater() bool {
-	return st.Status&sfcStatusDoubleSign > 0
+	return st.Status&SfcStatusDoubleSign > 0
 }
 
 // IsOffline signals if the validator is off-line.
@@ -270,4 +270,49 @@ func (st Staker) downtime() (uint64, uint64, error) {
 		return 0, 0, err
 	}
 	return val.(dt).Time, val.(dt).Blocks, err
+}
+
+func ValidatorStatus(st Staker) (*types.ValidatorStatus, error) {
+	ot, ob, err := repository.R().ValidatorDowntime((*hexutil.Big)(big.NewInt(st.Id.ToInt().Int64())))
+	if err != nil {
+		return nil, err
+	}
+	dt := types.Dt{
+		Time:   uint64(time.Duration(ot).Round(time.Second).Seconds()),
+		Blocks: ob,
+	}
+	validatorStatus, err := NewValidatorStatus(st, dt)
+	if err != nil {
+		return nil, err
+	}
+	return validatorStatus, nil
+}
+
+func NewValidatorStatus(staker Staker, DownTime types.Dt) (*types.ValidatorStatus, error) {
+	validatorStatus := &types.ValidatorStatus{
+		Id:               staker.Id.ToInt().Uint64(),
+		Address:          staker.StakerAddress.String(),
+		TotalStaked:      staker.TotalStake.ToInt().Uint64(),
+		Status:           uint64(staker.Status),
+		CreatedEpoch:     uint64(staker.CreatedEpoch),
+		CreatedTime:      time.Unix(int64(staker.CreatedTime), 0),
+		DeactivatedEpoch: uint64(staker.DeactivatedEpoch),
+		DeactivatedTime:  time.Unix(int64(staker.DeactivatedTime), 0),
+		DownTime:         DownTime,
+	}
+
+	switch staker.Status {
+	case 0:
+		validatorStatus.IsActive = true
+	case SfcStatusWithdrawn:
+		validatorStatus.IsWithdrawn = true
+	case SfcStatusOffline:
+		validatorStatus.IsOffline = true
+	case SfcStatusDoubleSign:
+		validatorStatus.IsCheater = true
+	}
+
+	validatorStatus.IsVoting = DownTime.Time == 0 && staker.Status == 0
+
+	return validatorStatus, nil
 }

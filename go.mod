@@ -9,7 +9,7 @@ require (
 	github.com/graph-gophers/graphql-transport-ws v0.0.2
 	github.com/klauspost/compress v1.17.0
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/onsi/gomega v1.19.0
+	github.com/onsi/gomega v1.24.1
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/oschwald/geoip2-golang v1.9.0
 	github.com/rs/cors v1.10.1
@@ -68,6 +68,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.1-0.20220614013038-64ee5596c38a // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
+	github.com/victorspringer/http-cache v0.0.0-20240130140836-2c4f8454e6e2 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.2 // indirect
 	github.com/xdg-go/stringprep v1.0.4 // indirect

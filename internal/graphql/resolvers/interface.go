@@ -88,6 +88,12 @@ type ApiResolver interface {
 	// Stakers resolves a list of staker information from SFC smart contract.
 	Stakers() ([]*Staker, error)
 
+	// StakersWithFlag resolves a list of stakers for the given type of flag.
+	StakersWithFlag(struct{ Flag string }) ([]*Staker, error)
+
+	// ValidatorStatuses resolves a list of staker statuses from SFC smart contract.
+	ValidatorStatuses() ([]*types.ValidatorStatus, error)
+
 	// Delegation resolves details of a delegator by its address.
 	Delegation(*struct {
 		Address common.Address

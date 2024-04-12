@@ -5,12 +5,16 @@ import (
 	"embed"
 	"encoding/json"
 	"fantom-api-graphql/internal/config"
+	"fantom-api-graphql/internal/graphql/resolvers"
 	"fantom-api-graphql/internal/logger"
 	"fantom-api-graphql/internal/repository"
 	"fantom-api-graphql/internal/types"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"io"
 	"math/big"
 	"net/http"
+	"strings"
 	"text/template"
 )
 
@@ -63,6 +67,133 @@ func ValidatorsDownHandler(log logger.Logger) http.Handler {
 		}{Val: list, Count: len(list)})
 		if err != nil {
 			log.Criticalf("can not execute HTML templates; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+func ValidatorsDownJSONHandler(log logger.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(r.Body)
+
+		list, err := repository.R().DownValidators()
+		if err != nil {
+			log.Criticalf("can not get list of offline server; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		err = json.NewEncoder(w).Encode(list)
+		if err != nil {
+			log.Critical("can not encode down validators; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+func ValidatorsJSONHandler(api resolvers.ApiResolver, log logger.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(r.Body)
+
+		list, err := api.ValidatorStatuses()
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			log.Criticalf("can not get list of offline server; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		err = json.NewEncoder(w).Encode(list)
+		if err != nil {
+			log.Critical("can not encode down validators; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	})
+}
+
+func ValidatorJSONHandler(log logger.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func(Body io.ReadCloser) {
+			_ = Body.Close()
+		}(r.Body)
+
+		var slug string
+		healthCheck := false
+		if strings.HasPrefix(r.URL.Path, "/validators/") {
+			slug = r.URL.Path[len("/validators/"):]
+		}
+		if strings.HasSuffix(r.URL.Path, "/health") {
+			slug = strings.TrimSuffix(slug, "/health")
+			healthCheck = true
+		}
+
+		val := new(types.Validator)
+		err := error(nil)
+
+		// check if slug is prefixed with 0x
+		if strings.HasPrefix(slug, "0x") {
+			address := common.HexToAddress(slug)
+			val, err = repository.R().ValidatorByAddress(&address)
+			if err != nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+		} else {
+			// parse id integer from the slug string
+			id := new(big.Int)
+			id, ok := id.SetString(slug, 10)
+
+			if !ok || id == nil {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+
+			val, err = repository.R().Validator((*hexutil.Big)(id))
+		}
+
+		ss := resolvers.NewStaker(val)
+		if ss == nil {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		validator, err := resolvers.ValidatorStatus(*ss)
+		if err != nil {
+			log.Errorf("could not build validator; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if healthCheck {
+			w.Header().Set("Content-Type", "text/plain")
+			if validator.IsOffline || !validator.IsActive || !validator.IsVoting {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				err = json.NewEncoder(w).Encode("unhealthy")
+			} else {
+				err = json.NewEncoder(w).Encode("healthy")
+			}
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err != nil {
+			log.Criticalf("can not get list of offline server; %s", err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+
+		err = json.NewEncoder(w).Encode(validator)
+		if err != nil {
+			log.Critical("can not encode down validators; %s", err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
