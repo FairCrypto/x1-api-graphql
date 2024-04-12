@@ -51,6 +51,20 @@ var (
 		Name: "graphql_validators_total",
 		Help: "The total number of validators",
 	})
+
+	ValidatorsStatusVecGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "graphql_validator_status",
+		Help: "The status of the validator",
+	}, []string{
+		"id",
+	})
+
+	votingValidatorsVecGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "graphql_validator_voting",
+		Help: "The status of the validator voting",
+	}, []string{
+		"id",
+	})
 )
 
 // init initializes the API server
@@ -233,8 +247,6 @@ func (app *apiServer) terminate() {
 }
 
 func (app *apiServer) RunValidatorChecks() {
-	validatorStatusGauges := make(map[uint64]prometheus.Gauge)
-
 	// run the validator checks
 	for {
 		if app.api == nil {
@@ -257,23 +269,18 @@ func (app *apiServer) RunValidatorChecks() {
 		for _, validatorStatus := range validatorStatuses {
 			if validatorStatus.IsCheater {
 				cheaterVals++
+				votingValidatorsVecGauge.DeleteLabelValues(fmt.Sprintf("%d", validatorStatus.Id))
 			} else if validatorStatus.IsOffline || validatorStatus.IsWithdrawn {
 				offlineVals++
+				votingValidatorsVecGauge.DeleteLabelValues(fmt.Sprintf("%d", validatorStatus.Id))
 			} else if !validatorStatus.IsVoting {
 				notVoting++
+				votingValidatorsVecGauge.WithLabelValues(fmt.Sprintf("%d", validatorStatus.Id)).Set(0)
+			} else if validatorStatus.IsVoting {
+				votingValidatorsVecGauge.WithLabelValues(fmt.Sprintf("%d", validatorStatus.Id)).Set(1)
 			}
 
-			if _, ok := validatorStatusGauges[validatorStatus.Id]; !ok {
-				validatorStatusGauges[validatorStatus.Id] = promauto.NewGauge(prometheus.GaugeOpts{
-					Name: fmt.Sprintf("graphql_validator_status"),
-					Help: fmt.Sprintf("The status of validator"),
-					ConstLabels: map[string]string{
-						"id": fmt.Sprintf("%d", validatorStatus.Id),
-					},
-				})
-			}
-
-			validatorStatusGauges[validatorStatus.Id].Set(float64(validatorStatus.Status))
+			ValidatorsStatusVecGauge.WithLabelValues(fmt.Sprintf("%d", validatorStatus.Id)).Set(float64(validatorStatus.Status))
 		}
 
 		offlineValidatorsGauge.Set(float64(offlineVals))
