@@ -265,8 +265,8 @@ func (app *apiServer) RunValidatorChecks() {
 
 			if _, ok := validatorStatusGauges[validatorStatus.Id]; !ok {
 				validatorStatusGauges[validatorStatus.Id] = promauto.NewGauge(prometheus.GaugeOpts{
-					Name: fmt.Sprintf("graphql_validator_%d_status", validatorStatus.Id),
-					Help: fmt.Sprintf("The status of validator %d", validatorStatus.Id),
+					Name: fmt.Sprintf("graphql_validator_status"),
+					Help: fmt.Sprintf("The status of validator"),
 					ConstLabels: map[string]string{
 						"id": fmt.Sprintf("%d", validatorStatus.Id),
 					},
