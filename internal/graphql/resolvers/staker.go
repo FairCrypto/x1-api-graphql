@@ -301,17 +301,16 @@ func NewValidatorStatus(staker Staker, DownTime types.Dt) (*types.ValidatorStatu
 		DownTime:         DownTime,
 	}
 
-	switch staker.Status {
-	case 0:
-		validatorStatus.IsActive = true
-	case SfcStatusWithdrawn:
+	if uint64(staker.Status)&SfcStatusWithdrawn > 0 {
 		validatorStatus.IsWithdrawn = true
-	case SfcStatusOffline:
-		validatorStatus.IsOffline = true
-	case SfcStatusDoubleSign:
+	}
+	if uint64(staker.Status)&SfcStatusDoubleSign > 0 {
 		validatorStatus.IsCheater = true
 	}
-
+	if uint64(staker.Status)&SfcStatusOffline > 0 {
+		validatorStatus.IsOffline = true
+	}
+	validatorStatus.IsActive = staker.Status == 0
 	validatorStatus.IsVoting = DownTime.Time == 0 && staker.Status == 0
 
 	return validatorStatus, nil

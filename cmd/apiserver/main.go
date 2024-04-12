@@ -2,6 +2,8 @@
 package main
 
 import (
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 	"time"
 )
@@ -18,7 +20,17 @@ func init() {
 
 // main initializes the API server and starts it when ready.
 func main() {
+	go makeMetricsServer()
+
 	app := apiServer{}
 	app.init()
 	app.run()
+}
+
+func makeMetricsServer() {
+	http.Handle("/metrics", promhttp.Handler())
+	err := http.ListenAndServe(":2112", nil)
+	if err != nil {
+		log.Crit(err.Error())
+	}
 }

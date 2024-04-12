@@ -12,6 +12,8 @@ import (
 	"fantom-api-graphql/internal/svc"
 	"flag"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	cache "github.com/victorspringer/http-cache"
 	"github.com/victorspringer/http-cache/adapter/memory"
 	"log"
@@ -31,6 +33,25 @@ type apiServer struct {
 	closed       chan interface{}
 	isVersionReq bool
 }
+
+var (
+	offlineValidatorsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "graphql_validators_offline",
+		Help: "The total number of offline validators",
+	})
+	notVotingValidatorsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "graphql_validators_not_voting",
+		Help: "The total number of not voting validators",
+	})
+	cheaterValidatorsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "graphql_validators_cheater",
+		Help: "The total number of cheater validators",
+	})
+	totalValidatorsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "graphql_validators_total",
+		Help: "The total number of validators",
+	})
+)
 
 // init initializes the API server
 func (app *apiServer) init() {
@@ -57,8 +78,11 @@ func (app *apiServer) init() {
 	svc.SetConfig(app.cfg)
 	svc.SetLogger(app.log)
 
+	go app.RunValidatorChecks()
+
 	// make the HTTP server
 	app.makeHttpServer()
+
 }
 
 // run executes the API server function.
@@ -206,4 +230,58 @@ func (app *apiServer) terminate() {
 	}
 
 	app.log.Notice("terminated")
+}
+
+func (app *apiServer) RunValidatorChecks() {
+	validatorStatusGauges := make(map[uint64]prometheus.Gauge)
+
+	// run the validator checks
+	for {
+		if app.api == nil {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		// get the list of validators
+		validatorStatuses, err := app.api.ValidatorStatuses()
+		if err != nil {
+			app.log.Errorf("can not get validators list; %s", err.Error())
+			time.Sleep(5 * time.Second)
+			continue
+		}
+
+		// check each validator
+		offlineVals := 0
+		notVoting := 0
+		cheaterVals := 0
+		for _, validatorStatus := range validatorStatuses {
+			if validatorStatus.IsCheater {
+				cheaterVals++
+			} else if validatorStatus.IsOffline || validatorStatus.IsWithdrawn {
+				offlineVals++
+			} else if !validatorStatus.IsVoting {
+				notVoting++
+			}
+
+			if _, ok := validatorStatusGauges[validatorStatus.Id]; !ok {
+				validatorStatusGauges[validatorStatus.Id] = promauto.NewGauge(prometheus.GaugeOpts{
+					Name: fmt.Sprintf("graphql_validator_%d_status", validatorStatus.Id),
+					Help: fmt.Sprintf("The status of validator %d", validatorStatus.Id),
+					ConstLabels: map[string]string{
+						"id": fmt.Sprintf("%d", validatorStatus.Id),
+					},
+				})
+			}
+
+			validatorStatusGauges[validatorStatus.Id].Set(float64(validatorStatus.Status))
+		}
+
+		offlineValidatorsGauge.Set(float64(offlineVals))
+		notVotingValidatorsGauge.Set(float64(notVoting))
+		cheaterValidatorsGauge.Set(float64(cheaterVals))
+		totalValidatorsGauge.Set(float64(len(validatorStatuses)))
+
+		// wait for the next check
+		time.Sleep(30 * time.Second)
+	}
 }
